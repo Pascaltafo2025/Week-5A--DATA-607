@@ -1,0 +1,24 @@
+---
+title: "Week 5A : Airlines Delays Analysis"
+author: "Pascal Hermann Kouogang Tafo"
+format: html
+editor: visual
+---
+
+## INTRODUCTION
+
+The goal of this assignment is to clean and transform a  "wide" dataset representing arrival delays for ALASKA and AM WEST airlines across five different cities into a "long” format suitable for comparative analysis. I will be using functions in the Tidyverse R-package to accomplish this goal.
+
+## APPROACH
+
+-   **Create** the data table and load it to a GitHub repo so that it could be easily accessible by everyone. 
+
+-   **Address** the missing airline names using the **fill() function**, ensuring every "delayed" and "on time" row is correctly attributed to either Airline and also i will  remove the empty row separating the status of the two airlines.
+
+-   **Use** the **pivot_longer() function** to transform my data to a long format because to perform our analysis on Airline Delays or On Time it will be better to have Variables as columns and Observation as rows.  
+
+-   **Calculate and Plot** of delay or On Time percentages for both Airlines overall.
+
+-   **Calculate and Plot** of delay or On Time percentages for both Airlines across the cities.
+
+-   **Analyze** potential similarity or not between the two comparison above.
