@@ -1,0 +1,239 @@
+---
+title: "Week 5A : Airlines Delays Analysis"
+author: "Pascal Hermann Kouogang Tafo"
+format: html
+editor: visual
+---
+
+## INTRODUCTION
+
+The goal of this assignment is to clean and transform a  "wide" dataset representing arrival delays for ALASKA and AM WEST airlines across five different cities into a "long” format suitable for comparative analysis. I will be using functions in the Tidyverse R-package to accomplish this goal.
+
+## APPROACH
+
+-   **Create** the data table and load it to a GitHub repo so that it could be easily accessible by everyone. 
+
+-   **Address** the missing airline names using the **fill() function**, ensuring every "delayed" and "on time" row is correctly attributed to either Airline and also i will  remove the empty row separating the status of the two airlines.
+
+-   **Use** the **pivot_longer() function** to transform my data to a long format because to perform our analysis on Airline Delays or On Time it will be better to have Variables as columns and Observation as rows.  
+
+-   **Calculate and Plot** of delay or On Time percentages for both Airlines overall.
+
+-   **Calculate and Plot** of delay or On Time percentages for both Airlines across the cities.
+
+-   **Analyze** potential similarity or not between the two comparison above.
+
+## Install and Load packages
+
+```{r Load-R-packages}
+
+library(tidyverse)
+
+```
+
+## Create the CSV Airlines flights Status CSV file and Save it in my GitHub
+
+```{r Create-CSV-File}
+
+Airlines_flights_status <- data.frame(
+  X = c("ALASKA", NA, NA, "AM WEST", NA),
+  Y = c("on time", "delayed", NA, "on time", "delayed"),
+  Los_Angeles   = c(497, 62, NA, 694, 117),
+  Phoenix       = c(221, 12, NA, 4840, 415),
+  San_Diego     = c(212, 20, NA, 383, 65),
+  San_Francisco = c(503, 102, NA, 320, 129),
+  Seattle       = c(1841, 305, NA, 210, 61)
+)
+
+Airlines_flights_status
+
+write.csv(Airlines_flights_status, "Airlines_flights_status.csv", row.names = FALSE)
+
+```
+
+## Read the file from my GitHub repo and populate missing data
+
+```{r}
+
+# Read CSV file
+
+url<- "https://raw.githubusercontent.com/Pascaltafo2025/Week-5A--DATA-607/refs/heads/main/Airlines_flights_status.csv"
+
+Airlines_flights_status <- read.csv(url)
+
+# Remove the blank row
+
+Airlines_flights_status <- Airlines_flights_status[c(1,2,4,5), ]
+Airlines_flights_status
+
+# Populate missing data
+
+Airlines_flights_status[c(2,4),1] <- Airlines_flights_status[c(1,3),1]
+
+colnames(Airlines_flights_status)[1:2] <- c('Airlines', 'Status')
+
+Airlines_flights_status
+
+```
+
+## Reshape data from wide to long format
+
+We will need to transform the data format from wide to long in order to facilitate our analysis on Airlines status. That transformation will consist of having Variables as columns and Observation as rows.
+
+```{r Reshape-data-wide-to-long}
+
+flights_Data_long <- Airlines_flights_status %>%
+  pivot_longer(
+    cols      = Los_Angeles:Seattle,
+    names_to  = "City",
+    values_to = "Count"
+  ) %>% # Clean up city names for display
+  mutate(City = str_replace_all(City, "_", " "))
+
+flights_Data_long
+
+```
+
+## Let's compare the overall flights delays percentages for the two airlines and create a bar graph
+
+**Step 1**:Overall flights status for both airlines
+
+```{r}
+
+
+overall_Airlines_summary <- flights_Data_long %>%
+  group_by(Airlines, Status) %>%
+  summarise(Total = sum(Count), .groups = "drop") %>%
+  group_by(Airlines) %>%
+  mutate(
+    Grand_Total  = sum(Total),
+    Pct          = round(Total / Grand_Total * 100,2)
+  ) %>%
+  ungroup()
+
+overall_Airlines_summary
+
+```
+
+**Step 2**: Overall delay flights status for the airlines.
+
+I decided to focus on flights delayed because they are more significant in the choice of an airlines for a trip.
+
+```{r}
+
+overall_flights_delay <- overall_Airlines_summary %>%
+  filter(Status == "delayed") %>%
+  select(Airlines, Delayed = Total, Grand_Total, Delay_Pct = Pct)
+
+overall_flights_delay
+
+```
+
+**Step 3**: Let's create the bar graph using ggplot2 package
+
+To create the plot, i used the help of Gemini 3.0 with the prompt: **"Plot the result of this code( I entered the overall_flights_delay code ) using ggplot2 package in R"**.
+
+```{r}
+
+library(ggplot2)
+
+# Create the plot
+
+ggplot(overall_flights_delay, aes(x = Airlines, y = Delay_Pct, fill = Airlines)) +
+  # Using geom_col for pre-summarized data (or geom_bar(stat = "identity"))
+  geom_col(width = 0.6) +
+  # Adding numerical labels above each bar for clarity
+  geom_text(aes(label = paste0(round(Delay_Pct, 2), "%")), 
+            vjust = -0.5, 
+            fontface = "bold",
+            size = 5) +
+  # Enhancing visual appeal with titles and clean axes
+  labs(
+    title = "Overall Percentage of Delayed Flights",
+    subtitle = "Aggregated data across all 5 destination cities",
+    x = "Airline",
+    y = "Percentage of Flights Delayed (%)"
+  ) +
+  # Choosing color-blind friendly or distinctive colors
+  scale_fill_manual(values = c("ALASKA" = "green", "AM WEST" = "orange")) +
+  # Removing the legend as the x-axis labels are sufficient
+  theme_minimal() +
+  theme(legend.position = "none") +
+  # Scaling the y-axis slightly higher than the max value to accommodate labels
+  scale_y_continuous(limits = c(0, max(overall_flights_delay$Delay_Pct) + 3))
+
+
+
+```
+
+## Interpretation:
+
+Despite having almost twice the volume of flights, AM WEST has a lower flights delay percentage of 10.88% compared to 13.27 %. Hence, based on the overall comparison delays percentages for the two airlines, passenger will be tempted to conclude that AM WEST is more punctual than ALASKA.
+
+## Let's compare the flights delays percentages for the two airlines across the five cities
+
+```{r Comparison-flights-delayed-accross-cities}
+
+city_flights_summary <- flights_Data_long %>%
+  group_by(Airlines, City) %>%
+  mutate(City_Total = sum(Count)) %>%
+  ungroup() %>%
+  filter(Status == "delayed") %>%
+  mutate(Delay_Pct = round(Count / City_Total * 100,2)) %>%
+  select(Airlines, City, Delayed = Count, City_Total, Delay_Pct)
+
+city_flights_summary <- city_flights_summary %>% arrange(City, Airlines)
+city_flights_summary
+
+
+```
+
+## Create a bar graph that represents he flights delays percentages for the two airlines across the five cities
+
+Here, I use the **same prompt as in the previous question but instead across the five cities on Gemini 3**.
+
+```{r plot}
+
+
+ggplot(city_flights_summary, aes(x = City, y = Delay_Pct, fill = Airlines)) +
+  # Use position = "dodge" to place bars side-by-side
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  # Add percentage labels above bars
+  geom_text(aes(label = paste0(round(Delay_Pct, 1), "%")), 
+            position = position_dodge(width = 0.8), 
+            vjust = -0.5, 
+            size = 3.5, 
+            fontface = "bold") +
+  # Customizing labels and theme
+  labs(
+    title = "Flight Delay Percentage by City and Airline",
+    subtitle = "Alaska Airlines vs. AM West across 5 Western Cities",
+    x = "Destination City",
+    y = "Percentage of Flights Delayed (%)",
+    fill = "Airline"
+  ) +
+  scale_fill_manual(values = c("ALASKA" = "green", "AM WEST" = "orange")) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank()
+  ) +
+  # Adjust Y axis to make room for labels
+  scale_y_continuous(limits = c(0, max(city_flights_summary$Delay_Pct) + 5))
+
+
+```
+
+## Interpretation
+
+The result of this analysis is surprising because ALASKA has the lowest rate of delay in every city despite the fact AM WEST was considered more punctual than ALASKA when performing the overall comparison.
+
+## ANALYSIS
+
+The paradox when comparing Alaska and AM West airlines delayed flights performance city by city vs the Overall performance can be explained by the vastly different distribution of flight volumes across the cities for the two airlines.
+
+For instance, ALASKA has less delayed flights than AM WEST in Phoenix but the total number of ALASKA flights to Phoenix is less than 5% compared to the total number of AM WEST flights to Phoenix (233 flights for ALASKA vs 5255 flights for AM WEST ).
+
+## CONCLUSION
+
+This result brings us to believe that there are more difficult cities to fly to where we believe ALASKA flights were concentrated. Thankfully, we conducted an analysis across cities which helped us to have a "non" bias opinion between both airlines.
